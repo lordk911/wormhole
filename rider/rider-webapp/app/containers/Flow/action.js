@@ -88,7 +88,16 @@ import {
   LOAD_ADMIN_LOGS_INFO,
   LOAD_ADMIN_LOGS_INFO_SUCCESS,
   LOAD_LOGS_INFO,
-  LOAD_LOGS_INFO_SUCCESS
+  LOAD_LOGS_INFO_SUCCESS,
+  LOAD_DRIFT_LIST,
+  POST_DRIFT,
+  VERIFY_DRIFT,
+  LOAD_FLOW_PERFORMANCE,
+  LOAD_RECHARGE_HISTORY,
+  LOAD_RECHARGE_HISTORY_SUCCESS,
+  COMFIRM_RECHARGE,
+  COMFIRM_RECHARGE_SUCCESS,
+  LOAD_FLOW_ERROR_LIST
 } from './constants'
 
 export function loadAdminAllFlows (resolve) {
@@ -785,6 +794,105 @@ export function adminLogsInfoLoaded (result) {
     type: LOAD_ADMIN_LOGS_INFO_SUCCESS,
     payload: {
       result
+    }
+  }
+}
+
+export function loadDriftList (projectId, flowId, resolve) {
+  return {
+    type: LOAD_DRIFT_LIST,
+    payload: {
+      projectId,
+      flowId,
+      resolve
+    }
+  }
+}
+
+export function verifyDrift (projectId, flowId, streamId, resolve) {
+  return {
+    type: VERIFY_DRIFT,
+    payload: {
+      projectId,
+      flowId,
+      streamId,
+      resolve
+    }
+  }
+}
+
+export function postDriftList (projectId, flowId, streamId, resolve) {
+  return {
+    type: POST_DRIFT,
+    payload: {
+      projectId,
+      flowId,
+      streamId,
+      resolve
+    }
+  }
+}
+export function postFlowPerformance (projectId, flowId, startTime, endTime, resolve) {
+  return {
+    type: LOAD_FLOW_PERFORMANCE,
+    payload: {
+      projectId,
+      flowId,
+      startTime,
+      endTime,
+      resolve
+    }
+  }
+}
+
+export function loadRechargeHistory (projectId, id, resolve) {
+  return {
+    type: LOAD_RECHARGE_HISTORY,
+    payload: {
+      projectId,
+      id,
+      resolve
+    }
+  }
+}
+
+export function rechargeHistoryLoaded (list) {
+  return {
+    type: LOAD_RECHARGE_HISTORY_SUCCESS,
+    payload: {
+      list
+    }
+  }
+}
+
+export function confirmReChange (projectId, id, protocolType, resolve, reject) {
+  return {
+    type: COMFIRM_RECHARGE,
+    payload: {
+      projectId,
+      id,
+      protocolType,
+      resolve,
+      reject
+    }
+  }
+}
+
+export function confirmReChangeLoaded (result) {
+  return {
+    type: COMFIRM_RECHARGE_SUCCESS,
+    payload: {
+      result
+    }
+  }
+}
+export function getErrorList (projectId, flowId, resolve) {
+  return {
+    type: LOAD_FLOW_ERROR_LIST,
+    payload: {
+      projectId,
+      flowId,
+      resolve
     }
   }
 }

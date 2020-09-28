@@ -36,13 +36,14 @@ description: Wormhole Quick Start page
    ```
 cd /usr/local/kafka/bin
 ./kafka-console-producer.sh --broker-list localhost:9092 --topic source --property "parse.key=true" --property "key.separator=@@@"
-data_increment_data.kafka.edp.source.test.*.*.*@@@{"id": 1，"name": "test"，"phone":"18074546423"，"address": "Beijing"，"time": "2017-12-22 10:00:00"}
+data_increment_data.kafka.edp.source.ums_extension.*.*.*@@@{"id": 1, "name": "test", "phone":"18074546423", "city": "Beijing", "time": "2017-12-22 10:00:00"}
    ```
 
 **4. Admin 配置 Source Namespace Schema**
 
-   <img src="https://github.com/edp963/wormhole/raw/master/docs/img/quick_start-source-schema.png" alt="" width="600"/>
+   <img src="https://github.com/edp963/wormhole/raw/master/docs/img/quick-start-source-schema.png" alt="" width="600"/>
 
+   **注意：若ums_ts_字段设置为long类型，对应数值应该为时间对应的秒数或毫秒数。**
 **5. Admin 创建 Sink Namespace**
 
    <img src="https://github.com/edp963/wormhole/raw/master/docs/img/quick-start-sink-instance-create.png" alt="" width="600"/>
@@ -57,7 +58,21 @@ data_increment_data.kafka.edp.source.test.*.*.*@@@{"id": 1，"name": "test"，"p
 
    <img src="https://github.com/edp963/wormhole/raw/master/docs/img/quick-start-create-lookup-ns.png" alt="" width="600"/>
 
-**7. Admin 创建 Project 并授权 Namespaces 和 Users**
+**7. Admin 创建 UDF**
+
+    UDF为可选项，可以省略该步骤，JAR包需要自己编译生成，具体方式参考[User Guide](https://edp963.github.io/wormhole/user-guide.html) 章节
+
+   **创建Spark UDF需要将jar包放置到配置文件中HDFS中的udfjars目录下，即spark.wormhole.hdfs.root.path/udfjars**
+
+   <img src="https://github.com/edp963/wormhole/raw/master/docs/img/quick-start-create-udf-spark.png" alt="" width="600"/>
+
+   **Flink支持UDF和UDAF操作，创建Flink UDF/UDAF需要将相关jar包放置到Flink安装目录中的lib下**
+
+​    **注：Wormhole Flink UDF支持普通的java程序，而不需要按照Flink官方文档的格式实现UDF。UDF/UDAF使用例程请参考 [User Guide](https://edp963.github.io/wormhole/user-guide.html) 章节**
+
+   <img src="https://github.com/edp963/wormhole/raw/master/docs/img/quick-start-create-udf-flink.png" alt="" width="600"/>
+
+**8. Admin 创建 Project 并授权 Namespaces 和 Users**
 
    **将 Source Namespace， Sink Namespace， Lookup Namespace 和 demo User 授权给 Project**
 
@@ -65,7 +80,7 @@ data_increment_data.kafka.edp.source.test.*.*.*@@@{"id": 1，"name": "test"，"p
 
 ## User 用户
 
-​**Wormhole支持Spark和Flink两种流式处理引擎，下面分别介绍Spark和Flink Stream/Flow的使用流程。**
+**Wormhole支持Spark和Flink两种流式处理引擎，下面分别介绍Spark和Flink Stream/Flow的使用流程。**
 
 ### Spark Stream/Flow 使用流程
 
@@ -123,7 +138,7 @@ data_increment_data.kafka.edp.source.test.*.*.*@@@{"id": 1，"name": "test"，"p
 
 **3. 提前创建Lookup Table，Sink Table**
 
-**注：sink table 中应有`id,name,cardBank,age,city,ums_ts_`字段**
+**注：sink table 中应有`id,name,cardBank,age,city`字段**
 
 **4. User 启动 Stream**
 
@@ -132,6 +147,14 @@ data_increment_data.kafka.edp.source.test.*.*.*@@@{"id": 1，"name": "test"，"p
    <img src="https://github.com/edp963/wormhole/raw/master/docs/img/quick-start-stream-running.png" alt="" width="600"/>
 
 **Stream切换到running状态后，若出现数据写不进去，Flow状态为failed等问题，请在 Yarn Application页面上查看 Stream  Driver/Executor日志**
+
+**5. Flow漂移**
+
+**支持Flow从一个Stream到另一个Stream的漂移。点击相应Flow中漂移按钮后，填写目标Stream即可。注：（1）只有spark default flow可以迁移，其他Flow不能迁移；（2）只能迁移至与原Flow对应Stream消费同一Kafka集群的Stream，即对应kafka instance url相同**
+
+<img src="https://github.com/edp963/wormhole/raw/master/docs/img/quick-start-flow-draft.png" alt="" width="600"/>
+
+**具体Flow漂移规则介绍请参考[User Guide](https://edp963.github.io/wormhole/user-guide.html) 章节**
 
 **启动过程中有问题可先参考[FAQ](https://edp963.github.io/wormhole/faq.html)章节排查~~**
 
@@ -163,7 +186,7 @@ data_increment_data.kafka.edp.source.test.*.*.*@@@{"id": 1，"name": "test"，"p
 
    **选择数据源**
 
-   **目前Flink Stream/Flow只支持消费UMS类型数据，创建新Source Namespace并授权访问权限，无须配置Source Schema，向Kafka中发送UMS类型测试数据。**
+   **Flink Stream/Flow支持消费UMS类型和用户自定义类型（UMS_extension）数据**
 
    <img src="https://github.com/edp963/wormhole/raw/master/docs/img/quick-start-flow-source-flink.png" alt="" width="600"/>
 
@@ -176,10 +199,9 @@ data_increment_data.kafka.test.flinksource.source.*.*.*###{"protocol":{"type":"d
 data_increment_data.kafka.test.flinksource.source.*.*.*###{"protocol":{"type":"data_increment_data"}，"schema":{"namespace":"kafka.test.flinksource.source.*.*.*"，"fields":[{"name":"ums_id_"，"type":"long"，"nullable":false}，{"name":"ums_ts_"，"type":"datetime"，"nullable":false}，{"name":"ums_op_"，"type":"string"，"nullable":false}，{"name":"key"，"type":"int"，"nullable":false}，{"name":"value1"，"type":"string"，"nullable":true}，{"name":"value2"，"type":"long"，"nullable":false}]}，"payload":[{"tuple":["1"，"2016-04-11 12:23:34.345123"，"i"，"12"，"aa7"，"13"]}，{"tuple":["2"，"2016-04-11 15:23:34.345123"，"u"，"12"，"aa8"，"15"]}，{"tuple":["3"，"2016-04-11 16:23:34.345123"，"d"，"12"，"aa9"，"16"]}]}
    ```
 
-
    **选择目标端**
 
-   **目前Flink Flow目标数据系统只支持Kafka系统**
+   **Flink Stream/Flow支持异构sink**
 
    <img src="https://github.com/edp963/wormhole/raw/master/docs/img/quick-start-flow-sink-flink.png" alt="" width="600"/>
 
@@ -207,15 +229,17 @@ data_increment_data.kafka.test.flinksource.source.*.*.*###{"protocol":{"type":"d
 
  	**Flink CEP 配置结果**
 
- 	**点击”保存”按钮后，弹框关闭，之前的所有编辑都被保存成一条CEP Transformation记录，在原来的Transformation处显示出来。（说明：1.由于wormhole支持一个flow内有多个CEP及Lookup SQL、Flink SQL的混合编排，因此，这里将显示一张表，记录了所有配置完毕的Transformation记录；2.目前版本中，暂时只支持Processing Time，不支持使用Event Time）**
+ 	**点击”保存”按钮后，弹框关闭，之前的所有编辑都被保存成一条CEP Transformation记录，在原来的Transformation处显示出来。支持Processing time和Event time两种模式。（说明：由于wormhole支持一个flow内有多个CEP及Lookup SQL、Flink SQL的混合编排，因此，这里将显示一张表，记录了所有配置完毕的Transformation记录）**
 
    <img src="https://github.com/edp963/wormhole/raw/master/docs/img/quick-start-flow-transform-result-flink.png" alt="" width="600"/>
+
+**Flink中通过中Transformation Config设置“exception_process_method”字段可选择对流处理中异常信息的处理方式。现在能捕获读取kafka后数据预处理、lookup操作、写sink操作时的异常。处理方式有unhandle、interrupt、feedback三种。**
+
+**注意：当在配置文件中设置checkpoint为true，则异常处理不能设置为interrupt，否则flow会一直重启。**
 
  **（3）提交flow**
 
 **配置完flow的Transformation后，通过点击浮框下方的”下一步”按钮，来进入到Confirmation步骤，对flow进行提交前的最后确认。当确认所有填写内容都没有问题后，就可以点击浮框下方的”提交”按钮来提交刚刚配置好的这个flow。否则，可以通过点击浮框下方的”上一步”按钮来返回之前的步骤，对错误的配置信息进行修改。**
-
-
 
 **启动 Flow， 配置Topic Offset信息**
 

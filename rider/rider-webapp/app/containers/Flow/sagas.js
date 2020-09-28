@@ -50,7 +50,14 @@ import {
   LOAD_UDFS,
   STOPFLINK_FLOWS,
   LOAD_ADMIN_LOGS_INFO,
-  LOAD_LOGS_INFO
+  LOAD_LOGS_INFO,
+  LOAD_DRIFT_LIST,
+  POST_DRIFT,
+  VERIFY_DRIFT,
+  LOAD_FLOW_PERFORMANCE,
+  LOAD_RECHARGE_HISTORY,
+  COMFIRM_RECHARGE,
+  LOAD_FLOW_ERROR_LIST
 } from './constants'
 
 import {
@@ -93,7 +100,9 @@ import {
   postUserTopicLoaded,
   deleteUserTopicLoaded,
   adminLogsInfoLoaded,
-  logsInfoLoaded
+  logsInfoLoaded,
+  rechargeHistoryLoaded,
+  confirmReChangeLoaded
 } from './action'
 
 import request from '../../utils/request'
@@ -165,7 +174,7 @@ export function* getSelectStreamKafkaTopicWatcher () {
   yield fork(takeLatest, LOAD_SELECT_STREAM_KAFKA_TOPIC, getSelectStreamKafkaTopic)
 }
 
-export function* getSourceTypeNamespace ({ payload }) {
+export function* getTypeNamespace ({ payload }) {
   try {
     const result = yield call(request, `${api.projectUserList}/${payload.projectId}/streams/${payload.streamId}/namespaces?${payload.type}=${payload.value}`)
     if (result.code) {
@@ -175,12 +184,12 @@ export function* getSourceTypeNamespace ({ payload }) {
       payload.resolve(result.payload)
     }
   } catch (err) {
-    notifySagasError(err, 'getSourceTypeNamespace')
+    notifySagasError(err, 'getTypeNamespace')
   }
 }
 
-export function* getSourceTypeNamespaceWatcher () {
-  yield fork(takeLatest, LOAD_SOURCESINKTYPE_NAMESPACE, getSourceTypeNamespace)
+export function* getTypeNamespaceWatcher () {
+  yield fork(takeLatest, LOAD_SOURCESINKTYPE_NAMESPACE, getTypeNamespace)
 }
 
 export function* getSinkTypeNamespace ({ payload }) {
@@ -715,12 +724,136 @@ export function* getAdminLogs ({ payload }) {
 export function* getAdminLogsWatcher () {
   yield fork(takeLatest, LOAD_ADMIN_LOGS_INFO, getAdminLogs)
 }
+
+export function* getDriftList ({ payload }) {
+  try {
+    const result = yield call(request, `${api.projectUserList}/${payload.projectId}/flows/${payload.flowId}/drift/streams`)
+    payload.resolve(result.payload)
+  } catch (err) {
+    notifySagasError(err, 'getDriftList')
+  }
+}
+
+export function* getDriftListWatcher () {
+  yield fork(takeLatest, LOAD_DRIFT_LIST, getDriftList)
+}
+
+export function* verifyDrift ({ payload }) {
+  try {
+    const result = yield call(request, `${api.projectUserList}/${payload.projectId}/flows/${payload.flowId}/drift/tip?streamId=${payload.streamId}`)
+    payload.resolve(result)
+  } catch (err) {
+    notifySagasError(err, 'verifyDrift')
+  }
+}
+
+export function* verifyDriftWatcher () {
+  yield fork(takeLatest, VERIFY_DRIFT, verifyDrift)
+}
+
+export function* submitDrift ({ payload }) {
+  try {
+    const result = yield call(request, {
+      method: 'put',
+      url: `${api.projectUserList}/${payload.projectId}/flows/${payload.flowId}/drift`,
+      data: {streamId: payload.streamId}
+    })
+    if (result.header && result.header.code === 200) {
+      yield put(flinkFlowStartSucc(result.payload))
+    }
+    payload.resolve(result.payload)
+  } catch (err) {
+    notifySagasError(err, 'submitDrift')
+  }
+}
+
+export function* postDriftWatcher () {
+  yield fork(takeLatest, POST_DRIFT, submitDrift)
+}
+
+export function* searchPerformance ({ payload }) {
+  let { startTime, endTime } = payload
+  try {
+    const result = yield call(request, {
+      method: 'post',
+      url: `${api.projectUserList}/monitor/${payload.projectId}/flow/${payload.flowId}`,
+      data: {startTime, endTime}
+    })
+    if (result.header && result.header.code === 200) {
+      payload.resolve(result.payload)
+    }
+  } catch (err) {
+    notifySagasError(err, 'searchPerformance')
+  }
+}
+
+export function* postPerformanceWatcher () {
+  yield fork(takeLatest, LOAD_FLOW_PERFORMANCE, searchPerformance)
+}
+
+export function* getRechargeHistory ({ payload }) {
+  try {
+    const result = yield call(request, `${api.projectUserList}/${payload.projectId}/errors/${payload.id}/log`)
+    yield put(rechargeHistoryLoaded(result.payload))
+    payload.resolve(result.payload)
+  } catch (err) {
+    yield put(flowsLoadingError(err))
+  }
+}
+
+export function* getRechargeHistoryWatcher () {
+  yield fork(takeLatest, LOAD_RECHARGE_HISTORY, getRechargeHistory)
+}
+
+export function* reChangeConfirm ({ payload }) {
+  try {
+    const result = yield call(request, {
+      method: 'post',
+      url: `${api.projectUserList}/${payload.projectId}/errors/${payload.id}/backfill`,
+      data: {protocolType: payload.protocolType}
+    })
+    if (result.header && result.header.code === 200) {
+      yield put(confirmReChangeLoaded(result.payload))
+      payload.resolve(result.payload)
+    } else {
+      yield put(operateFlowError(result.msg, payload.reject))
+      payload.reject(result.payload)
+    }
+  } catch (err) {
+    notifySagasError(err, 'reChangeConfirm')
+  }
+}
+
+export function* reChangeConfirmWatcher () {
+  yield fork(takeLatest, COMFIRM_RECHARGE, reChangeConfirm)
+}
+
+export function* getErrorList ({ payload }) {
+  try {
+    const result = yield call(request, {
+      method: 'get',
+      url: `${api.projectUserList}/${payload.projectId}/flows/${payload.flowId}/errors`
+    })
+    if (result.header && result.header.code === 200) {
+      payload.resolve(result.payload)
+    } else {
+      payload.reject(result.payload)
+    }
+  } catch (err) {
+    notifySagasError(err, 'getErrorList')
+  }
+}
+
+export function* getErrorListWatcher () {
+  yield fork(takeLatest, LOAD_FLOW_ERROR_LIST, getErrorList)
+}
+
 export default [
   getAdminAllFlowsWatcher,
   getUserAllFlowsWatcher,
   getAdminSingleFlowWatcher,
   getSelectStreamKafkaTopicWatcher,
-  getSourceTypeNamespaceWatcher,
+  getTypeNamespaceWatcher,
   getSinkTypeNamespaceWatcher,
   getTranSinkTypeNamespaceWatcher,
   getSourceToSinkWatcher,
@@ -746,5 +879,12 @@ export default [
   getUdfsWatcher,
   stopFlinkFlowWathcer,
   getLogsWatcher,
-  getAdminLogsWatcher
+  getAdminLogsWatcher,
+  getDriftListWatcher,
+  postDriftWatcher,
+  verifyDriftWatcher,
+  postPerformanceWatcher,
+  getRechargeHistoryWatcher,
+  reChangeConfirmWatcher,
+  getErrorListWatcher
 ]
